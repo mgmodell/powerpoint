@@ -10,7 +10,7 @@ module Powerpoint
   end
 
   def self.compress_pptx(in_path, out_path)
-    Zip::File.open(out_path, Zip::File::CREATE) do |zip_file|
+    Zip::File.open(out_path, create: true) do |zip_file|
       Dir.glob("#{in_path}/**/*", ::File::FNM_DOTMATCH).each do |path|
         zip_path = path.gsub("#{in_path}/","")
         next if zip_path == "." || zip_path == ".." || zip_path.match(/DS_Store/)
