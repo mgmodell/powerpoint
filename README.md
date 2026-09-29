@@ -1,5 +1,5 @@
 [![version](https://badge.fury.io/rb/powerpoint.svg)](https://badge.fury.io/rb/powerpointk)
-[![downloads](https://ruby-gem-downloads-badge.herokuapp.com/powerpoint?type=total&total_label=downloads)](https://ruby-gem-downloads-badge.herokuapp.com/powerpoint?type=total&total_label=downloads)
+[![Coverage # Status](https://coveralls.io/repos/mgmodell/powerpoint/badge.svg?branch=master&service=github)](https://coveralls.io/github/mgmodell/powerpoint?branch=master)
 
 # 'powerpoint' gem -- for creating PowerPoint Slides in Ruby.
 
