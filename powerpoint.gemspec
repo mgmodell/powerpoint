@@ -23,6 +23,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 4"
   spec.add_development_dependency "rake"
   spec.add_development_dependency 'rspec', '~> 3.13.2'
+  spec.add_development_dependency 'coveralls_reborn', '<=0.29.0'
   spec.add_development_dependency 'pry'
   spec.add_development_dependency 'simplecov', '~> 0.22'
 

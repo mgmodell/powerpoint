@@ -14,6 +14,7 @@ jobs:
     permissions:
       contents: read
 
+    environment: test
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
@@ -21,3 +22,5 @@ jobs:
           bundler-cache: true
       - name: Run test suite
         run: bundle exec rspec
+        env:
+          COVERALLS_REPO_TOKEN: ${{secrets.COVERALLS_REPO_TOKEN}}
