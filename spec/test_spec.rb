@@ -1,22 +1,200 @@
-require 'powerpoint'
+require 'spec_helper'
 
-describe 'Powerpoint parsing a sample PPTX file' do
-  before(:all) do 
-    @deck = Powerpoint::Presentation.new
-    @deck.add_intro 'Bicycle Of the Mind', 'created by Steve Jobs'
-    @deck.add_textual_slide 'Why Mac?', ['Its cool!', 'Its light!']
-    @deck.add_textual_slide 'Why Iphone?', ['Its fast!', 'Its cheap!']
-    @deck.add_pictorial_slide 'JPG Logo', 'samples/images/sample_png.png'
-    @deck.add_text_picture_slide('Text Pic Split', 'samples/images/sample_png.png', content = ['Here is a string', 'here is another'])
-    @deck.add_pictorial_slide 'PNG Logo', 'samples/images/sample_png.png'
-    @deck.add_picture_description_slide('Pic Desc', 'samples/images/sample_png.png', content = ['Here is a string', 'here is another'])
-    @deck.add_picture_description_slide('JPG Logo', 'samples/images/sample_jpg.jpg', content = ['descriptions'])
-    @deck.add_pictorial_slide 'GIF Logo', 'samples/images/sample_gif.gif', {x: 124200, y: 3356451, cx: 2895600, cy: 1013460}
-    @deck.add_textual_slide 'Why Android?', ['Its great!', 'Its sweet!']
-    @deck.save 'samples/pptx/sample.pptx' # Examine the PPTX file
+RSpec.describe Powerpoint::Presentation do
+  let(:png_image) { File.expand_path('../samples/images/sample_png.png', __dir__) }
+  let(:jpg_image) { File.expand_path('../samples/images/sample_jpg.jpg', __dir__) }
+  let(:gif_image) { File.expand_path('../samples/images/sample_gif.gif', __dir__) }
+
+  def pptx_entry_contents(pptx_path, entry_name)
+    Zip::File.open(pptx_path) { |zip_file| zip_file.read(entry_name) }
   end
 
-  it 'Create a PPTX file successfully.' do
-    #@deck.should_not be_nil
+  def pptx_entries(pptx_path)
+    Zip::File.open(pptx_path) { |zip_file| zip_file.map(&:name) }
+  end
+
+  it 'builds a valid pptx with expected slides, relationships and media' do
+    deck = described_class.new
+    deck.add_intro('Deck Title', 'Deck Subtitle')
+    deck.add_textual_slide('Agenda', ['Item 1', 'Item 2'])
+    deck.add_pictorial_slide('Picture', png_image, x: 100, y: 200, cx: 300, cy: 400)
+    deck.add_text_picture_slide('Split', jpg_image, ['Left text'])
+    deck.add_picture_description_slide('Description', gif_image, ['Caption'])
+
+    saved_path = nil
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'sample.pptx')
+      saved_path = deck.save(output)
+
+      expect(saved_path).to eq(output)
+      expect(File.exist?(output)).to be(true)
+
+      entries = pptx_entries(output)
+      expect(entries).to include('[Content_Types].xml')
+      expect(entries).to include('ppt/presentation.xml')
+      expect(entries).to include('ppt/slides/slide1.xml', 'ppt/slides/slide2.xml', 'ppt/slides/slide3.xml', 'ppt/slides/slide4.xml', 'ppt/slides/slide5.xml')
+      expect(entries).to include('ppt/media/sample_png.png', 'ppt/media/sample_jpg.jpg', 'ppt/media/sample_gif.gif')
+      expect(entries).not_to include(a_string_matching(/\.keep$/))
+
+      intro_slide = pptx_entry_contents(output, 'ppt/slides/slide1.xml')
+      expect(intro_slide).to include('<a:t>Deck Title</a:t>')
+      expect(intro_slide).to include('<a:t>Deck Subtitle</a:t>')
+
+      textual_slide = pptx_entry_contents(output, 'ppt/slides/slide2.xml')
+      expect(textual_slide).to include('<a:t>Agenda</a:t>')
+      expect(textual_slide).to include('<a:t>Item 1</a:t>')
+      expect(textual_slide).to include('<a:t>Item 2</a:t>')
+
+      pictorial_slide = pptx_entry_contents(output, 'ppt/slides/slide3.xml')
+      expect(pictorial_slide).to include('<a:off x="100" y="200"/>')
+      expect(pictorial_slide).to include('<a:ext cx="300" cy="400"/>')
+
+      split_slide = pptx_entry_contents(output, 'ppt/slides/slide4.xml')
+      expect(split_slide).to include('<a:t>Split</a:t>')
+      expect(split_slide).to include('<a:t>Left text</a:t>')
+
+      description_slide = pptx_entry_contents(output, 'ppt/slides/slide5.xml')
+      expect(description_slide).to include('<a:t>Description</a:t>')
+      expect(description_slide).to include('<a:t>Caption</a:t>')
+
+      content_types = pptx_entry_contents(output, '[Content_Types].xml')
+      expect(content_types).to include('Extension="png"')
+      expect(content_types).to include('Extension="jpg"')
+      expect(content_types).to include('Extension="gif"')
+
+      presentation_xml = pptx_entry_contents(output, 'ppt/presentation.xml')
+      expect(presentation_xml.scan('<p:sldId ').size).to eq(5)
+
+      relationships_xml = pptx_entry_contents(output, 'ppt/_rels/presentation.xml.rels')
+      expect(relationships_xml).to include('Target="slides/slide1.xml"')
+      expect(relationships_xml).to include('Target="slides/slide5.xml"')
+    end
+
+    expect(saved_path).to end_with('.pptx')
+  end
+
+  it 'replaces an existing intro slide and keeps it at the beginning' do
+    deck = described_class.new
+    deck.add_textual_slide('Body', ['one'])
+    deck.add_intro('Original', 'Sub')
+    deck.add_intro('Updated', 'Sub 2')
+
+    expect(deck.slides.length).to eq(2)
+    expect(deck.slides.first).to be_a(Powerpoint::Slide::Intro)
+    expect(deck.slides.first.title).to eq('Updated')
+    expect(deck.slides[1]).to be_a(Powerpoint::Slide::Textual)
+  end
+
+  it 'returns unique non-nil media file types' do
+    deck = described_class.new
+    deck.add_intro('Only title')
+    deck.add_pictorial_slide('Png 1', png_image)
+    deck.add_pictorial_slide('Png 2', png_image)
+    deck.add_pictorial_slide('Jpg', jpg_image)
+
+    expect(deck.file_types).to eq(%w[png jpg])
+  end
+end
+
+RSpec.describe Powerpoint::Util do
+  let(:dummy_class) do
+    Class.new do
+      include Powerpoint::Util
+    end
+  end
+  let(:dummy) { dummy_class.new }
+
+  it 'converts pixels to points' do
+    expect(dummy.pixle_to_pt(2)).to eq(25_400)
+  end
+
+  it 'raises when required arguments are missing' do
+    expect { dummy.require_arguments([:a, :b], { a: 1 }) }.to raise_error(ArgumentError)
+  end
+
+  it 'does not raise when required arguments are present' do
+    expect { dummy.require_arguments([:a], { a: 1 }) }.not_to raise_error
+  end
+
+  it 'copies media only once when destination already exists' do
+    Dir.mktmpdir do |dir|
+      media_dir = File.join(dir, 'ppt', 'media')
+      FileUtils.mkdir_p(media_dir)
+      source = File.join(dir, 'source.png')
+      destination = File.join(media_dir, 'source.png')
+
+      File.write(source, 'first')
+      dummy.copy_media(dir, source)
+      expect(File.read(destination)).to eq('first')
+
+      File.write(source, 'second')
+      dummy.copy_media(dir, source)
+      expect(File.read(destination)).to eq('first')
+    end
+  end
+
+  it 'renders templates with variables' do
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'rendered.xml')
+      dummy.render_view('textual_rel.xml.erb', output, index: 12)
+      expect(File.read(output)).to include('slideLayout12.xml')
+    end
+  end
+
+  it 'reads templates from the gem views path' do
+    template = dummy.read_template('app.xml.erb')
+    expect(template).to include('<%= slides.length %>')
+  end
+
+  it 'merges local variables into a binding' do
+    base_binding = binding
+    merged_binding = dummy.merge_variables(base_binding, answer: 42)
+
+    expect(merged_binding.local_variable_get(:answer)).to eq(42)
+  end
+end
+
+RSpec.describe 'slide helpers and compression' do
+  let(:png_image) { File.expand_path('../samples/images/sample_png.png', __dir__) }
+
+  it 'uses empty default coordinates when image dimensions are unavailable' do
+    slide = Powerpoint::Slide::Pictorial.new(
+      presentation: Powerpoint::Presentation.new,
+      title: 'Missing image',
+      image_path: '/does/not/exist.png',
+      coords: {}
+    )
+
+    expect(slide.coords).to eq({})
+    expect(slide.file_type).to eq('png')
+  end
+
+  it 'compresses pptx directories and excludes macOS metadata files' do
+    Dir.mktmpdir do |dir|
+      source_dir = File.join(dir, 'source')
+      output = File.join(dir, 'archive.pptx')
+
+      FileUtils.mkdir_p(File.join(source_dir, 'nested'))
+      File.write(File.join(source_dir, 'nested', 'file.txt'), 'hello')
+      File.write(File.join(source_dir, '.DS_Store'), 'ignored')
+
+      Powerpoint.compress_pptx(source_dir, output)
+      expect(File.exist?(output)).to be(true)
+
+      zip_entries = Zip::File.open(output) { |zip_file| zip_file.map(&:name) }
+      expect(zip_entries).to include('nested/file.txt')
+      expect(zip_entries).not_to include('.DS_Store')
+    end
+  end
+
+  it 'computes non-empty default coordinates for valid images' do
+    slide = Powerpoint::Slide::TextPicSplit.new(
+      presentation: Powerpoint::Presentation.new,
+      title: 'Split',
+      image_path: png_image,
+      content: ['A']
+    )
+
+    expect(slide.coords).to include(:x, :y, :cx, :cy)
   end
 end
