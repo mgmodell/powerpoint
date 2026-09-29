@@ -1,6 +1,6 @@
-require 'simplecov'
+require 'coveralls'
 
-SimpleCov.start do
+Coveralls.wear! do
   add_filter '/spec/'
   minimum_coverage 90
 end

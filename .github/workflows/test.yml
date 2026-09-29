@@ -23,4 +23,10 @@ jobs:
       - name: Run test suite
         run: bundle exec rspec
         env:
+          CI_NAME: github-actions
+          CI_JOB_ID: ${{ github.run_id }}
+          CI_BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          CI_BRANCH: ${{ github.head_ref || github.ref_name }}
+          CI_PULL_REQUEST: ${{ github.event.pull_request.html_url || '' }}
+          COVERALLS_SERVICE_NAME: github-actions
           COVERALLS_REPO_TOKEN: ${{secrets.COVERALLS_REPO_TOKEN}}
