@@ -27,12 +27,12 @@
         </p:nvSpPr>
         <p:spPr/>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr><a:normAutofit/></a:bodyPr>
           <a:lstStyle/>
           <a:p>
             <a:r>
               <a:rPr dirty="0" lang="en-US" smtClean="0"/>
-              <a:t><%= title %></a:t>
+              <a:t><%= ERB::Util.html_escape(title) %></a:t>
             </a:r>
             <a:endParaRPr dirty="0" lang="en-US"/>
           </a:p>
@@ -50,12 +50,12 @@
         </p:nvSpPr>
         <p:spPr/>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr><a:normAutofit/></a:bodyPr>
           <a:lstStyle/>
           <a:p>
             <a:r>
               <a:rPr lang="en-US" smtClean="0"/>
-              <a:t><%= subtitile %></a:t>
+              <a:t><%= ERB::Util.html_escape(subtitile) %></a:t>
             </a:r>
             <a:endParaRPr lang="en-US"/>
           </a:p>

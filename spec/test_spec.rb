@@ -39,23 +39,28 @@ RSpec.describe Powerpoint::Presentation do
       intro_slide = pptx_entry_contents(output, 'ppt/slides/slide1.xml')
       expect(intro_slide).to include('<a:t>Deck Title</a:t>')
       expect(intro_slide).to include('<a:t>Deck Subtitle</a:t>')
+      expect(intro_slide.scan('<a:normAutofit/>').size).to eq(2)
 
       textual_slide = pptx_entry_contents(output, 'ppt/slides/slide2.xml')
       expect(textual_slide).to include('<a:t>Agenda</a:t>')
       expect(textual_slide).to include('<a:t>Item 1</a:t>')
       expect(textual_slide).to include('<a:t>Item 2</a:t>')
+      expect(textual_slide.scan('<a:normAutofit/>').size).to eq(2)
 
       pictorial_slide = pptx_entry_contents(output, 'ppt/slides/slide3.xml')
       expect(pictorial_slide).to include('<a:off x="100" y="200"/>')
       expect(pictorial_slide).to include('<a:ext cx="300" cy="400"/>')
+      expect(pictorial_slide.scan('<a:normAutofit/>').size).to eq(1)
 
       split_slide = pptx_entry_contents(output, 'ppt/slides/slide4.xml')
       expect(split_slide).to include('<a:t>Split</a:t>')
       expect(split_slide).to include('<a:t>Left text</a:t>')
+      expect(split_slide.scan('<a:normAutofit/>').size).to eq(2)
 
       description_slide = pptx_entry_contents(output, 'ppt/slides/slide5.xml')
       expect(description_slide).to include('<a:t>Description</a:t>')
       expect(description_slide).to include('<a:t>Caption</a:t>')
+      expect(description_slide.scan('<a:normAutofit/>').size).to eq(2)
 
       content_types = pptx_entry_contents(output, '[Content_Types].xml')
       expect(content_types).to include('Extension="png"')
@@ -64,6 +69,7 @@ RSpec.describe Powerpoint::Presentation do
 
       presentation_xml = pptx_entry_contents(output, 'ppt/presentation.xml')
       expect(presentation_xml.scan('<p:sldId ').size).to eq(5)
+      expect(presentation_xml).to include('<p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>')
 
       relationships_xml = pptx_entry_contents(output, 'ppt/_rels/presentation.xml.rels')
       expect(relationships_xml).to include('Target="slides/slide1.xml"')
@@ -71,6 +77,27 @@ RSpec.describe Powerpoint::Presentation do
     end
 
     expect(saved_path).to end_with('.pptx')
+  end
+
+  it 'generates readable text on a widescreen slide and escapes XML content' do
+    deck = described_class.new
+    deck.add_textual_slide('Goals & <objectives>', ['Readable & visible'])
+
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'widescreen.pptx')
+      deck.save(output)
+
+      presentation_xml = pptx_entry_contents(output, 'ppt/presentation.xml')
+      slide_xml = pptx_entry_contents(output, 'ppt/slides/slide1.xml')
+      app_xml = pptx_entry_contents(output, 'docProps/app.xml')
+
+      expect(presentation_xml).to include('<p:sldSz cx="12192000" cy="6858000" type="screen16x9"/>')
+      expect(slide_xml).to include('<a:bodyPr><a:normAutofit/></a:bodyPr>')
+      expect(slide_xml).to include('Goals &amp; &lt;objectives&gt;')
+      expect(slide_xml).to include('Readable &amp; visible')
+      expect(app_xml).to include('<PresentationFormat>On-screen Show (16:9)</PresentationFormat>')
+      expect(app_xml).to include('Goals &amp; &lt;objectives&gt;')
+    end
   end
 
   it 'replaces an existing intro slide and keeps it at the beginning' do
@@ -196,5 +223,73 @@ RSpec.describe 'slide helpers and compression' do
     )
 
     expect(slide.coords).to include(:x, :y, :cx, :cy)
+    expect(slide.coords[:x]).to eq(480 * 12_700)
+    expect(slide.coords[:cy]).to be <= 420 * 12_700
+  end
+
+  it 'centers default images within the widescreen canvas and available height' do
+    slides = [
+      [
+        Powerpoint::Slide::Pictorial.new(
+          presentation: Powerpoint::Presentation.new,
+          title: 'Picture',
+          image_path: png_image,
+          coords: {}
+        ),
+        420
+      ],
+      [
+        Powerpoint::Slide::DescriptionPic.new(
+          presentation: Powerpoint::Presentation.new,
+          title: 'Description',
+          image_path: png_image,
+          content: []
+        ),
+        300
+      ]
+    ]
+
+    slides.each do |slide, max_height|
+      expect(slide.coords[:x] + slide.coords[:cx] / 2).to eq(960 * 12_700 / 2)
+      expect(slide.coords[:cy]).to be <= max_height * 12_700
+    end
+  end
+
+  it 'constrains portrait images to the slide content height' do
+    allow(FastImage).to receive(:size).and_return([100, 1_000])
+
+    slides = [
+      [
+        Powerpoint::Slide::Pictorial.new(
+          presentation: Powerpoint::Presentation.new,
+          title: 'Picture',
+          image_path: 'portrait.png',
+          coords: {}
+        ),
+        420
+      ],
+      [
+        Powerpoint::Slide::TextPicSplit.new(
+          presentation: Powerpoint::Presentation.new,
+          title: 'Split',
+          image_path: 'portrait.png',
+          content: []
+        ),
+        420
+      ],
+      [
+        Powerpoint::Slide::DescriptionPic.new(
+          presentation: Powerpoint::Presentation.new,
+          title: 'Description',
+          image_path: 'portrait.png',
+          content: []
+        ),
+        300
+      ]
+    ]
+
+    slides.each do |slide, max_height|
+      expect(slide.coords[:cy]).to eq(max_height * 12_700)
+    end
   end
 end
