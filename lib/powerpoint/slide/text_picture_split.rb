@@ -28,13 +28,18 @@ module Powerpoint
       end
 
       def default_coords
-        start_x = pixle_to_pt(360)
+        start_x = pixle_to_pt(480)
         default_width = pixle_to_pt(300)
+        default_height = pixle_to_pt(420)
 
         return {} unless dimensions = FastImage.size(image_path)
         image_width, image_height = dimensions.map {|d| pixle_to_pt(d)}
-        new_width = default_width < image_width ? default_width : image_width
-        ratio = new_width / image_width.to_f
+        ratio = [
+          default_width / image_width.to_f,
+          default_height / image_height.to_f,
+          1
+        ].min
+        new_width = (image_width * ratio).round
         new_height = (image_height.to_f * ratio).round
         {x: start_x, y: pixle_to_pt(120), cx: new_width, cy: new_height}
       end

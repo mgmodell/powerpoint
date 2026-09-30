@@ -27,12 +27,12 @@
         </p:nvSpPr>
         <p:spPr/>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr><a:normAutofit/></a:bodyPr>
           <a:lstStyle/>
           <a:p>
             <a:r>
               <a:rPr lang="en-US" dirty="0" smtClean="0"/>
-              <a:t><%= title %></a:t>
+              <a:t><%= ERB::Util.html_escape(title) %></a:t>
             </a:r>
             <a:endParaRPr lang="en-US" dirty="0"/>
           </a:p>
@@ -86,13 +86,13 @@
         </p:nvSpPr>
         <p:spPr/>
         <p:txBody>
-          <a:bodyPr/>
+          <a:bodyPr><a:normAutofit/></a:bodyPr>
           <a:lstStyle/>
           <% content.each_with_index do |c, index| %>
           <a:p>
             <a:r>
               <a:rPr lang="en-US" dirty="0" smtClean="0"/>
-              <a:t><%= c %></a:t>
+              <a:t><%= ERB::Util.html_escape(c) %></a:t>
             </a:r>
           <% if content.length == (index + 1) %>
           <a:endParaRPr lang="en-US"/>

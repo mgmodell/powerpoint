@@ -58,6 +58,8 @@ coords = {x: 124200, y: 3356451, cx: 2895600, cy: 1013460}
   
 ## Compatibility
 
+Generated presentations use a 16:9 widescreen layout, and slide text is automatically sized to fit its placeholders.
+
 'powerpoint' gem has been tested with LibreOffice (4.2.1.1) and Apache OpenOffice (4.0.1) on Mac OS X Mavericks, Microsoft PowerPoint 2010 on Windows 7 and Google Docs (latest version as of March 2014).
 
 ## Contributing
