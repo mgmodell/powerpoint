@@ -7,6 +7,7 @@ module Powerpoint
   module Slide
     class DescriptionPic
       include Powerpoint::Util
+      include Powerpoint::Slide::Transition
 
       attr_reader :title, :content, :image_name, :image_path, :coords
 
@@ -55,7 +56,7 @@ module Powerpoint
       private :save_rel_xml
 
       def save_slide_xml(extract_path, index)
-        render_view('picture_description_slide.xml.erb', "#{extract_path}/ppt/slides/slide#{index}.xml")
+        render_view('picture_description_slide.xml.erb', "#{extract_path}/ppt/slides/slide#{index}.xml", transition_xml: transition_xml)
       end
       private :save_slide_xml
     end

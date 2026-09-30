@@ -55,6 +55,20 @@ coords = {x: 124200, y: 3356451, cx: 2895600, cy: 1013460}
 # Saving the pptx file to the current directory.
 @deck.save('test.pptx')
 ```
+
+Transitions can be configured per slide with a transition type and duration in
+milliseconds:
+
+```ruby
+@deck.add_textual_slide(
+  'Agenda',
+  ['Item 1', 'Item 2'],
+  { transition: { type: :fade, duration: 750 } }
+)
+```
+
+The transition type defaults to `fade`; supported types include `fade`,
+`dissolve`, `wipe`, `push`, and `zoom`.
   
 ## Compatibility
 
