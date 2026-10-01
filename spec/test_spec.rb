@@ -100,6 +100,86 @@ RSpec.describe Powerpoint::Presentation do
     end
   end
 
+  it 'adds transitions and durations to each slide type' do
+    deck = described_class.new
+    deck.add_intro('Opening', 'Subtitle', transition: { type: :fade, duration: 750 })
+    deck.add_textual_slide('Agenda', [], transition: { type: :wipe, duration: 1000 })
+    deck.add_pictorial_slide('Picture', png_image, {}, transition: { type: :dissolve, duration: 1250 })
+    deck.add_text_picture_slide('Split', png_image, [], transition: { type: :push, duration: 1500 })
+    deck.add_picture_description_slide('Description', png_image, [], transition: { type: :zoom, duration: 2000 })
+
+    Dir.mktmpdir do |dir|
+      output = File.join(dir, 'transitions.pptx')
+      deck.save(output)
+
+      expected_transitions = [
+        ['fade', 750],
+        ['wipe', 1000],
+        ['dissolve', 1250],
+        ['push', 1500],
+        ['zoom', 2000]
+      ]
+
+      expected_transitions.each_with_index do |(type, duration), index|
+        slide_xml = pptx_entry_contents(output, "ppt/slides/slide#{index + 1}.xml")
+        expect(slide_xml).to include(%(p14:dur="#{duration}"))
+        expect(slide_xml).to include("<p:#{type}/>")
+      end
+    end
+  end
+
+  it 'rejects unsupported transitions and invalid durations' do
+    deck = described_class.new
+    deck.add_textual_slide('Invalid', [], transition: { type: 'unexpected' })
+
+    Dir.mktmpdir do |dir|
+      expect { deck.save(File.join(dir, 'invalid.pptx')) }.to raise_error(ArgumentError, /unsupported transition type/)
+    end
+
+    deck = described_class.new
+    deck.add_textual_slide('Invalid duration', [], transition: { duration: 'fast' })
+
+    Dir.mktmpdir do |dir|
+      expect { deck.save(File.join(dir, 'invalid-duration.pptx')) }.to raise_error(ArgumentError, /duration must be a positive integer/)
+    end
+  end
+
+  it 'supports omitted transitions, default effects, and string-keyed options' do
+    deck = described_class.new
+    deck.add_textual_slide('No transition')
+    deck.add_textual_slide('Default effect', [], transition: {})
+    deck.add_intro('String keys', transition: { 'type' => 'wipe', 'duration' => 500 })
+
+    no_transition = deck.slides.find { |slide| slide.title == 'No transition' }
+    default_effect = deck.slides.find { |slide| slide.title == 'Default effect' }
+    string_keys = deck.slides.find { |slide| slide.title == 'String keys' }
+
+    expect(no_transition.send(:transition_xml)).to eq('')
+    expect(default_effect.send(:transition_xml)).to include('<p:fade/>')
+    expect(default_effect.send(:transition_xml)).not_to include('p14:dur')
+    expect(string_keys.send(:transition_xml)).to include('p14:dur="500"', '<p:wipe/>')
+  end
+
+  it 'rejects non-hash transitions and non-positive durations' do
+    [ 'fade', 1 ].each do |transition|
+      deck = described_class.new
+      deck.add_textual_slide('Invalid', [], transition: transition)
+
+      Dir.mktmpdir do |dir|
+        expect { deck.save(File.join(dir, 'invalid.pptx')) }.to raise_error(ArgumentError, /transition must be a Hash/)
+      end
+    end
+
+    [0, -1].each do |duration|
+      deck = described_class.new
+      deck.add_textual_slide('Invalid duration', [], transition: { duration: duration })
+
+      Dir.mktmpdir do |dir|
+        expect { deck.save(File.join(dir, 'invalid-duration.pptx')) }.to raise_error(ArgumentError, /duration must be a positive integer/)
+      end
+    end
+  end
+
   it 'replaces an existing intro slide and keeps it at the beginning' do
     deck = described_class.new
     deck.add_textual_slide('Body', ['one'])

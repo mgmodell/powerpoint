@@ -12,9 +12,13 @@ module Powerpoint
       @slides = []
     end
 
-    def add_intro(title, subtitile = nil)
+    def add_intro(title, subtitile = nil, options = {})
+      if subtitile.is_a?(Hash) && options.empty?
+        options = subtitile
+        subtitile = nil
+      end
       existing_intro_slide = @slides.select {|s| s.class == Powerpoint::Slide::Intro}[0]
-      slide = Powerpoint::Slide::Intro.new(presentation: self, title: title, subtitile: subtitile)
+      slide = Powerpoint::Slide::Intro.new(presentation: self, title: title, subtitile: subtitile, transition: options[:transition])
       if existing_intro_slide
         @slides[@slides.index(existing_intro_slide)] = slide 
       else
@@ -22,20 +26,20 @@ module Powerpoint
       end
     end
 
-    def add_textual_slide(title, content = [])
-      @slides << Powerpoint::Slide::Textual.new(presentation: self, title: title, content: content)
+    def add_textual_slide(title, content = [], options = {})
+      @slides << Powerpoint::Slide::Textual.new(presentation: self, title: title, content: content, transition: options[:transition])
     end
 
-    def add_pictorial_slide(title, image_path, coords = {})
-      @slides << Powerpoint::Slide::Pictorial.new(presentation: self, title: title, image_path: image_path, coords: coords)
+    def add_pictorial_slide(title, image_path, coords = {}, options = {})
+      @slides << Powerpoint::Slide::Pictorial.new(presentation: self, title: title, image_path: image_path, coords: coords, transition: options[:transition])
     end
 
-    def add_text_picture_slide(title, image_path, content = [])
-      @slides << Powerpoint::Slide::TextPicSplit.new(presentation: self, title: title, image_path: image_path, content: content)
+    def add_text_picture_slide(title, image_path, content = [], options = {})
+      @slides << Powerpoint::Slide::TextPicSplit.new(presentation: self, title: title, image_path: image_path, content: content, transition: options[:transition])
     end
 
-    def add_picture_description_slide(title, image_path, content = [])
-      @slides << Powerpoint::Slide::DescriptionPic.new(presentation: self, title: title, image_path: image_path, content: content)
+    def add_picture_description_slide(title, image_path, content = [], options = {})
+      @slides << Powerpoint::Slide::DescriptionPic.new(presentation: self, title: title, image_path: image_path, content: content, transition: options[:transition])
     end
 
     def save(path)
