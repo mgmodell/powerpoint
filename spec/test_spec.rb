@@ -144,6 +144,42 @@ RSpec.describe Powerpoint::Presentation do
     end
   end
 
+  it 'supports omitted transitions, default effects, and string-keyed options' do
+    deck = described_class.new
+    deck.add_textual_slide('No transition')
+    deck.add_textual_slide('Default effect', [], transition: {})
+    deck.add_intro('String keys', transition: { 'type' => 'wipe', 'duration' => 500 })
+
+    no_transition = deck.slides.find { |slide| slide.title == 'No transition' }
+    default_effect = deck.slides.find { |slide| slide.title == 'Default effect' }
+    string_keys = deck.slides.find { |slide| slide.title == 'String keys' }
+
+    expect(no_transition.send(:transition_xml)).to eq('')
+    expect(default_effect.send(:transition_xml)).to include('<p:fade/>')
+    expect(default_effect.send(:transition_xml)).not_to include('p14:dur')
+    expect(string_keys.send(:transition_xml)).to include('p14:dur="500"', '<p:wipe/>')
+  end
+
+  it 'rejects non-hash transitions and non-positive durations' do
+    [ 'fade', 1 ].each do |transition|
+      deck = described_class.new
+      deck.add_textual_slide('Invalid', [], transition: transition)
+
+      Dir.mktmpdir do |dir|
+        expect { deck.save(File.join(dir, 'invalid.pptx')) }.to raise_error(ArgumentError, /transition must be a Hash/)
+      end
+    end
+
+    [0, -1].each do |duration|
+      deck = described_class.new
+      deck.add_textual_slide('Invalid duration', [], transition: { duration: duration })
+
+      Dir.mktmpdir do |dir|
+        expect { deck.save(File.join(dir, 'invalid-duration.pptx')) }.to raise_error(ArgumentError, /duration must be a positive integer/)
+      end
+    end
+  end
+
   it 'replaces an existing intro slide and keeps it at the beginning' do
     deck = described_class.new
     deck.add_textual_slide('Body', ['one'])
